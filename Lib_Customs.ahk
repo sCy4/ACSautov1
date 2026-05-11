@@ -4,7 +4,7 @@
 
 ; 將原本長長檔名的設定檔，改為隱藏快取檔
 global CONFIG_FILE := A_ScriptDir "\.assignees_cache.txt"
-global DEFAULT_ASSIGNEES := "萍, 富, 蓁, 姿, 珊, 彥"
+global DEFAULT_ASSIGNEES := "萍, 富, 蓁, 姿, 彥, 潔"
 global GAS_URL := "https://script.google.com/macros/s/AKfycbw2D6js48bcpApc6VhBfksd-98TCjvXZTccShoFBegp2P03Wh4tw3E3ufNQLKg4EXqX/exec"
 global SHEET_TAB_NAME := "清關報告"
 global MSG := {
