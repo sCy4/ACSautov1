@@ -1,8 +1,9 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #Include %A_ScriptDir%\Lib_Shared.ahk
 #Include %A_ScriptDir%\UIA.ahk
 
-global CONFIG_FILE := A_ScriptDir "\腳本設定檔-清關名單預設分配人員.txt"
+; 將原本長長檔名的設定檔，改為隱藏快取檔
+global CONFIG_FILE := A_ScriptDir "\.assignees_cache.txt"
 global DEFAULT_ASSIGNEES := "萍, 富, 蓁, 姿, 珊, 彥"
 global GAS_URL := "https://script.google.com/macros/s/AKfycbw2D6js48bcpApc6VhBfksd-98TCjvXZTccShoFBegp2P03Wh4tw3E3ufNQLKg4EXqX/exec"
 global SHEET_TAB_NAME := "清關報告"
@@ -24,22 +25,20 @@ global MSG := {
     ReportBody: "完成了`n`n總計：{1}`n`n已按申報相符：{2}`n已上傳個案委任書：{3}`n其他：{4}`n`n本次有 {5} 筆狀態更改"
 }
 
-; --- 建立選單函數 ---
+; --- 建立選單函數 (已移除 emoji) ---
 BuildCustomsMenu(TargetMenu) {
     TargetMenu.Add("◎ 清關名單動作自動化", (*) => "")
     TargetMenu.Disable("◎ 清關名單動作自動化")
-    TargetMenu.Add(" 🔍 查詢單筆", Action_EZWCheck)
-    TargetMenu.Add(" ✅ 更新申報狀態", Action_EZWRenew)
-    TargetMenu.Add(" 🤝 分配人員與標記Y/N", Action_EZWAllot)
+    TargetMenu.Add(" 查詢單筆", Action_EZWCheck)
+    TargetMenu.Add(" 更新申報狀態", Action_EZWRenew)
+    TargetMenu.Add(" 分配人員與標記Y/N", Action_EZWAllot)
 }
 
 ; --- 導航輔助函式 ---
 NavigateToSearch(ChromeEl) {
-    ; Step 1：已在正確頁面
     if ChromeEl.ElementExist({AutomationId: "traceCode", Type: "Edit"})
         return true
 
-    ; Step 2：有返回按鈕就直接點
     backLink := ChromeEl.ElementExist({Name: "返回上一頁", Type: "Link", MatchMode: "Substring"})
     if backLink {
         backLink.Click(), Sleep(200)
@@ -47,7 +46,6 @@ NavigateToSearch(ChromeEl) {
         return true
     }
 
-    ; Step 3：點導覽連結跳到較近的訂單查詢頁
     navLink := ChromeEl.ElementExist({Value: "javascript:addTabs('%E8%A8%82%E5%96%AE%E6%9F%A5%E8%A9%A2','doc.order');"})
     if !navLink {
         dropdown := ChromeEl.ElementExist({Type: "Link", ClassName: "has-ul"})
@@ -247,11 +245,8 @@ Action_EZWRenew(*) {
 Action_EZWAllot(*) {
     rawAssigneeText := ""
     
+    ; 讀取上次存檔的名單，若無則使用預設名單
     if !FileExist(CONFIG_FILE) {
-        try {
-            FileAppend(DEFAULT_ASSIGNEES, CONFIG_FILE, "UTF-8")
-        } catch {
-        }
         rawAssigneeText := DEFAULT_ASSIGNEES
     } else {
         rawAssigneeText := FileRead(CONFIG_FILE, "UTF-8")
@@ -264,6 +259,16 @@ Action_EZWAllot(*) {
     
     if (ib.Result = "Cancel" || ib.Result = "Timeout")
         return 
+        
+    ; 【新增功能】：將這次輸入的名單存起來，並標記為隱藏檔案
+    try {
+        if FileExist(CONFIG_FILE)
+            FileDelete(CONFIG_FILE)
+        FileAppend(ib.Value, CONFIG_FILE, "UTF-8")
+        FileSetAttrib("+H", CONFIG_FILE) 
+    } catch {
+        ; 忽略寫入權限錯誤，不影響後續執行
+    }
     
     cleanedInput := RegExReplace(ib.Value, "[，、\s]+", ",")
     tempArray := StrSplit(cleanedInput, ",")
@@ -444,7 +449,6 @@ if (A_LineFile == A_ScriptFullPath) {
     MyMenu := Menu()
     BuildCustomsMenu(MyMenu)
 
-    ; 加上 Customs_ 前綴避免名稱衝突
     Customs_StandaloneRButton(*) {
         if (isMouseLocked)
             return
@@ -465,7 +469,6 @@ if (A_LineFile == A_ScriptFullPath) {
         Reload()
     }
 
-    ; 綁定熱鍵
     Hotkey "$RButton", Customs_StandaloneRButton, "T2"
     Hotkey "F8", Customs_StandaloneF8
 }
